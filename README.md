@@ -12,7 +12,7 @@ grouped by author, keep a local cache, and copy them to an M8. A sibling of
 
 ## Use
 
-    m8-themes-sync --list                # the full catalogue, grouped by author; writes nothing
+    m8-themes-sync --list                # the full catalogue, grouped by author; writes nothing (logs go to stderr, so it pipes cleanly)
     m8-themes-sync                       # cache every theme under tmp/<author>/
     m8-themes-sync dracula               # only themes whose name or author contains "dracula"
     m8-themes-sync --dry-run             # show what would change
