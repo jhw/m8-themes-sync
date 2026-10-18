@@ -1,0 +1,73 @@
+from __future__ import annotations
+
+import filecmp
+import logging
+import shutil
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Sequence
+
+from .cache import Cache
+from .sync import Match
+
+log = logging.getLogger("m8_themes_sync")
+
+DEFAULT_M8_ROOT = Path("/Volumes/M8")
+DEFAULT_THEMES_DIR = "Themes"
+DEFAULT_SUBDIR = "m8themes"     # <Themes>/m8themes/<author>/NAME.m8t
+
+
+class M8NotFound(Exception):
+    """The M8 volume or its Themes folder is not there."""
+
+
+@dataclass
+class M8Report:
+    destination: Path
+    copied: List[str] = field(default_factory=list)
+    unchanged: List[str] = field(default_factory=list)
+    not_cached: List[str] = field(default_factory=list)
+    dry_run: bool = False
+
+
+def copy_to_m8(items: Sequence[Match], cache: Cache, *,
+               m8_root: Path = DEFAULT_M8_ROOT,
+               themes_dir: str = DEFAULT_THEMES_DIR,
+               subdir: str = DEFAULT_SUBDIR,
+               dry_run: bool = False) -> M8Report:
+    """Copy cached themes to ``<m8_root>/<themes_dir>/<subdir>/<author>/``.
+
+    By default that is ``/Volumes/M8/Themes/m8themes/<author>/NAME.m8t``.
+    Themes already on the card with identical content are left alone, and
+    nothing outside ``<subdir>`` is touched - the stock themes in the root of
+    ``Themes/`` and your own custom ones are never modified. ``Themes/`` must
+    already exist; only the folders below it are created.
+    """
+    m8_root = Path(m8_root)
+    if not m8_root.is_dir():
+        raise M8NotFound(f"{m8_root} not found - is the M8 mounted?")
+    base = m8_root / themes_dir
+    if not base.is_dir():
+        raise M8NotFound(f"{base} not found - is this an M8 SD card?")
+    dest = base / subdir if subdir else base
+
+    report = M8Report(destination=dest, dry_run=dry_run)
+    log.info("M8: %s %s", "checking (dry run)" if dry_run else "copying to",
+             dest)
+    for _theme, rel in items:
+        src = cache.file(rel)
+        shown = rel.as_posix()
+        if not src.is_file():
+            report.not_cached.append(shown)
+            log.warning("M8: %s not in the local cache, skipped", shown)
+            continue
+        target = dest / rel
+        if target.is_file() and filecmp.cmp(src, target, shallow=False):
+            report.unchanged.append(shown)
+            continue
+        if not dry_run:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, target)
+        report.copied.append(shown)
+        log.info("M8: %s %s", "would copy" if dry_run else "copied", shown)
+    return report
