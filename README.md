@@ -37,7 +37,7 @@ On the M8, the same layout goes under `Themes/m8themes/`:
         *.m8t                       stock themes + any you put there: never touched
         defaults/                   copies of the nine stock themes (backup)
         m8themes/<author>/*.m8t     written by this tool
-        custom/                     your own hand-made themes
+        wol/                        your own hand-made themes
 
 The tool only ever writes inside `Themes/m8themes/` (`--m8-subdir` to change),
 skips files already identical on the card, and requires `Themes/` to exist.
