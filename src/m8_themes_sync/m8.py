@@ -79,18 +79,21 @@ def copy_to_m8(items: Sequence[Match], cache: Cache, *,
 def _flatten_legacy(dest: Path, report: M8Report, dry_run: bool,
                     cached: dict) -> None:
     """Remove ``.m8t`` files in sub-folders of ``dest`` (the old
-    ``<author>/NAME.m8t`` layout) whose identical copy now sits directly in
-    ``dest``, then any folders left empty. A file with no identical flat
-    copy is never touched."""
+    ``<author>/NAME.m8t`` layout) whose exact bytes now sit as a file
+    directly in ``dest`` (under any name: a theme sharing its name with
+    another is renamed ``NAME (author).m8t``), then any folders left empty.
+    A file with no identical flat copy is never touched."""
     if not dest.is_dir():
         return
+    flat = {f.read_bytes() for f in dest.glob("*.m8t")
+            if f.is_file() and not f.name.startswith("._")}
+    if dry_run:     # what the copy above would have put there
+        flat |= {src.read_bytes() for src in cached.values()
+                 if src.is_file()}
     for old in sorted(dest.rglob("*.m8t")):
         if old.parent == dest or old.name.startswith("._"):
             continue
-        flat = dest / old.name
-        if not flat.is_file() and dry_run:
-            flat = cached.get(old.name, flat)    # what the copy would be
-        if flat.is_file() and filecmp.cmp(old, flat, shallow=False):
+        if old.read_bytes() in flat:
             shown = old.relative_to(dest).as_posix()
             report.flattened.append(shown)
             log.info("M8: %s %s (now at the top level)",

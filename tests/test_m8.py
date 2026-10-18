@@ -90,3 +90,23 @@ def test_old_author_folders_are_flattened(synced, tmp_path):
     assert not gone.exists()                             # emptied, removed
     assert (old / "MINE.m8t").read_bytes() == b"not on the site"
     assert not (old / "IOS.m8t").exists()
+
+
+def test_flatten_matches_renamed_duplicates_by_content(tmp_path, make_client):
+    from conftest import ROW_IOS, row
+    rows = [ROW_IOS, row(ROW_IOS, id=1, name="IOS", user_id="u9",
+                         user_name="other",
+                         data=ROW_IOS["data"][:-2] + "00")]
+    cache = Cache(tmp_path / "cache")
+    rep = sync("", make_client(FakeResp(200, rows)), cache)
+    names = sorted(r.name for _t, r in rep.matched)
+    assert names == ["IOS (euphemism).m8t", "IOS.m8t"]   # id 1 got plain IOS
+    root = card(tmp_path)
+    old = root / "Themes/m8themes/euphemism"
+    old.mkdir(parents=True)
+    (old / "IOS.m8t").write_bytes(
+        (cache.root / "IOS (euphemism).m8t").read_bytes())
+    r = copy_to_m8(rep.matched, cache, m8_root=root)
+    assert r.flattened == ["euphemism/IOS.m8t"]
+    assert not old.exists()
+    assert (root / "Themes/m8themes/IOS (euphemism).m8t").is_file()
