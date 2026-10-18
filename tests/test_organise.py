@@ -74,4 +74,4 @@ def test_cli_flag(card, capsys):
     root, t = card
     (t / "GRAYSCALE.m8t").write_bytes(b"g")
     assert cli.main(["--organise", "--m8-root", str(root)]) == 0
-    assert "1 moved to defaults/" in capsys.readouterr().out
+    assert "1 moved to defaults/" in capsys.readouterr().err

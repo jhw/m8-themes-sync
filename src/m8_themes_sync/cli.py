@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -64,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
 def setup_logging(verbose: bool, quiet: bool) -> None:
     level = logging.DEBUG if verbose else logging.WARNING if quiet \
         else logging.INFO
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)-7s %(message)s", datefmt="%H:%M:%S"))
     log.handlers[:] = [handler]
@@ -73,10 +74,17 @@ def setup_logging(verbose: bool, quiet: bool) -> None:
 
 
 def print_catalogue(items) -> None:
-    for folder, group in group_by_author(items).items():
-        print(f"{folder} ({len(group)})")
-        for theme, _rel in sorted(group, key=lambda m: m[0].name.lower()):
-            print(f"    {theme.name}")
+    """Print the catalogue; quietly stop if the reader closes the pipe
+    (``--list | head``)."""
+    try:
+        for folder, group in group_by_author(items).items():
+            print(f"{folder} ({len(group)})")
+            for theme, _rel in sorted(group, key=lambda m: m[0].name.lower()):
+                print(f"    {theme.name}")
+        sys.stdout.flush()
+    except BrokenPipeError:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
 
 
 def main(argv=None) -> int:
