@@ -12,6 +12,7 @@ from .cache import Cache, default_cache_dir
 from .client import BASE_URL, ThemesClient, ThemesError
 from .m8 import (DEFAULT_M8_ROOT, DEFAULT_SUBDIR, DEFAULT_THEMES_DIR,
                  M8NotFound, copy_to_m8)
+from .organise import organise_themes
 from .sync import catalogue, group_by_author, matches, sync
 
 log = logging.getLogger("m8_themes_sync")
@@ -29,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--list", action="store_true",
                    help="print the full catalogue grouped by author and "
                         "exit; writes nothing")
+    p.add_argument("--organise", action="store_true",
+                   help="tidy the root of the M8's Themes/ folder and exit: "
+                        "stock themes go to defaults/, files that have an "
+                        "identical copy in a subfolder are removed, anything "
+                        "else is left alone (combine with --dry-run)")
     p.add_argument("--cache-dir", type=Path, default=None,
                    help="local cache (default: <project>/tmp, or "
                         "$M8_THEMES_SYNC_CACHE)")
@@ -76,6 +82,19 @@ def print_catalogue(items) -> None:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     setup_logging(args.verbose, args.quiet)
+    if args.organise:
+        try:
+            r = organise_themes(m8_root=args.m8_root, dry_run=args.dry_run)
+        except M8NotFound as e:
+            log.error("%s", e)
+            return 1
+        log.info("organise done%s: %d moved to defaults/, %d duplicates "
+                 "removed, %d left alone, %d conflicts",
+                 " (dry run)" if r.dry_run else "",
+                 len(r.moved_to_defaults), len(r.removed_duplicates),
+                 len(r.left_alone), len(r.conflicts))
+        return 1 if r.conflicts else 0
+
     client = ThemesClient(base_url=args.base_url, api_key=args.api_key,
                           delay=args.delay)
 

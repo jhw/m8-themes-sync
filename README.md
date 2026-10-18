@@ -37,9 +37,14 @@ On the M8, the same layout goes under `Themes/m8themes/`:
         *.m8t                       stock themes + any you put there: never touched
         defaults/                   copies of the nine stock themes (backup)
         m8themes/<author>/*.m8t     written by this tool
-        wol/                        your own hand-made themes
+        custom/                     your own hand-made themes
 
-The tool only ever writes inside `Themes/m8themes/` (`--m8-subdir` to change),
+`m8-themes-sync --organise [--dry-run]` tidies the root of `Themes/`: the nine
+stock themes go to `defaults/`, any other root `.m8t` with a byte-identical copy
+in a subfolder is removed, and everything else is left and listed. Nothing is
+deleted unless the same bytes survive elsewhere on the card.
+
+The tool otherwise only ever writes inside `Themes/m8themes/` (`--m8-subdir` to change),
 skips files already identical on the card, and requires `Themes/` to exist.
 
 - Author folder names are folded to ASCII (the M8 only displays ASCII):
