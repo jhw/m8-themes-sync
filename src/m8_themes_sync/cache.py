@@ -30,11 +30,11 @@ def _atomic_write(path: Path, data: bytes) -> None:
 
 
 class Cache:
-    """Local mirror laid out as ``<author>/<THEME>.m8t``::
+    """Local mirror, one flat folder of ``<THEME>.m8t`` files::
 
-        tmp/beat-pharmaxy/BELLAGIO.m8t
-        tmp/tekfrenz/TKF.m8t
-        tmp/.index.json            <- site id -> where we stored it
+        tmp/BELLAGIO.m8t
+        tmp/TKF.m8t
+        tmp/.index.json            <- site id -> where we stored it, + author
 
     A theme is only 53 bytes, so "is it up to date?" is answered by comparing
     the file's bytes with what the site sent. The index just remembers where

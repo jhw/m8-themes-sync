@@ -52,15 +52,26 @@ def test_fat_safe():
     assert fat_safe("...") == "_"
 
 
-def test_assign_paths_duplicates():
+def test_assign_paths_is_flat_and_disambiguates_duplicates():
     a = Theme.from_api(row(ROW_MICRO, id=1, name="SUNSET", user_id="u1",
                            user_name="Foo"))
     b = Theme.from_api(row(ROW_MICRO, id=2, name="sunset", user_id="u1",
                            user_name="Foo"))               # same author
     c = Theme.from_api(row(ROW_IOS, id=3, name="SUNSET", user_id="u2222222",
-                           user_name="foo"))               # folder clash
-    paths = assign_paths([c, b, a])
-    assert paths[1] == Path("Foo/SUNSET.m8t")
-    assert paths[2] == Path("Foo/sunset (2).m8t")
-    assert paths[3] == Path("foo-u2222222/SUNSET.m8t")
-    assert len({str(p).lower() for p in paths.values()}) == 3
+                           user_name="Bar"))               # other author
+    d = Theme.from_api(row(ROW_IOS, id=4, name="IOS", user_id="u3",
+                           user_name="Baz"))
+    paths = assign_paths([d, c, b, a])
+    assert paths[1] == Path("SUNSET.m8t")                  # first keeps it
+    assert paths[2] == Path("sunset (Foo).m8t")
+    assert paths[3] == Path("SUNSET (Bar).m8t")
+    assert paths[4] == Path("IOS.m8t")
+    assert all(p.parent == Path(".") for p in paths.values())
+    assert len({str(p).lower() for p in paths.values()}) == 4
+
+
+def test_assign_paths_third_collision_uses_id():
+    ts = [Theme.from_api(row(ROW_MICRO, id=i, name="X", user_id="u",
+                             user_name="Foo")) for i in (1, 2, 3)]
+    assert [str(assign_paths(ts)[i]) for i in (1, 2, 3)] == [
+        "X.m8t", "X (Foo).m8t", "X (Foo, 3).m8t"]

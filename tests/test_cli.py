@@ -19,7 +19,7 @@ def test_sync_and_copy(monkeypatch, tmp_path, capsys):
     rc = cli.main(["--cache-dir", str(tmp_path / "c"), "--m8",
                    "--m8-root", str(root)])
     assert rc == 0
-    assert (root / "Themes/m8themes/microflora/M8CROFLORA.m8t").is_file()
+    assert (root / "Themes/m8themes/M8CROFLORA.m8t").is_file()
     assert "2 of 2 themes match (2 authors)" in capsys.readouterr().err
 
 

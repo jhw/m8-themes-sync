@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 
 from .cache import Cache
 from .client import ThemesClient
-from .models import Theme, assign_paths
+from .models import Theme, assign_paths, author_folder
 
 log = logging.getLogger("m8_themes_sync")
 
@@ -28,7 +28,7 @@ class SyncReport:
 
     @property
     def authors(self) -> int:
-        return len({rel.parent for _, rel in self.matched})
+        return len({t.user_id or t.user_name for t, _ in self.matched})
 
 
 def catalogue(client: ThemesClient) -> Tuple[List[Theme], Dict[int, Path]]:
@@ -37,22 +37,25 @@ def catalogue(client: ThemesClient) -> Tuple[List[Theme], Dict[int, Path]]:
     themes = client.fetch_all()
     paths = assign_paths(themes)
     log.info("%d themes by %d authors", len(themes),
-             len({p.parent for p in paths.values()}))
+             len({t.user_id or t.user_name for t in themes}))
     return themes, paths
 
 
 def matches(term: str, theme: Theme, rel: Path) -> bool:
     """Empty term matches everything; else a case-insensitive substring of the
-    theme name or its author (as shown on the site, or as a folder)."""
+    theme name or its author (as shown on the site, or ASCII-folded)."""
     t = (term or "").strip().lower()
     return (not t or t in theme.name.lower()
-            or t in theme.user_name.lower() or t in rel.parent.name.lower())
+            or t in theme.user_name.lower()
+            or t in author_folder(theme.user_name, theme.user_id).lower())
 
 
 def group_by_author(items: List[Match]) -> Dict[str, List[Match]]:
+    """Group for display only (``--list``); files on disk are flat."""
     groups: Dict[str, List[Match]] = defaultdict(list)
     for item in items:
-        groups[item[1].parent.as_posix()].append(item)
+        theme = item[0]
+        groups[author_folder(theme.user_name, theme.user_id)].append(item)
     return dict(sorted(groups.items(), key=lambda kv: kv[0].lower()))
 
 

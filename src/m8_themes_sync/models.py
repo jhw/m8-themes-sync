@@ -90,25 +90,23 @@ class Theme:
 
 
 def assign_paths(themes: List[Theme]) -> Dict[int, Path]:
-    """Relative path (``<author>/<NAME>.m8t``) for every theme.
+    """Relative path (a flat ``<NAME>.m8t``) for every theme.
 
-    Two different authors whose folder names collide (FAT ignores case) get
-    their user-id appended; two themes of one author that collide on file
-    name get their site id appended. Processed in id order, so the result
-    is stable from run to run.
+    Themes are not grouped into folders, so they are easy to find by name on
+    the M8. When two themes share a name (FAT ignores case) the later one, by
+    site id, becomes ``NAME (author).m8t``, or ``NAME (author, id).m8t`` if
+    even that is taken. Processed in id order, so the result is stable from
+    run to run.
     """
-    folders: Dict[str, str] = {}      # lower-case folder -> owning user_id
     paths: Dict[int, Path] = {}
     used = set()
     for t in sorted(themes, key=lambda t: t.id):
-        folder = author_folder(t.user_name, t.user_id)
-        owner = folders.setdefault(folder.lower(), t.user_id)
-        if owner != t.user_id:
-            folder = f"{folder}-{(t.user_id or 'x')[:8]}"
-            folders.setdefault(folder.lower(), t.user_id)
-        fname = t.filename
-        if (folder.lower(), fname.lower()) in used:
-            fname = f"{fat_safe(t.name)} ({t.id}){_EXT}"
-        used.add((folder.lower(), fname.lower()))
-        paths[t.id] = Path(folder) / fname
+        base = fat_safe(t.name)
+        author = author_folder(t.user_name, t.user_id)
+        for fname in (f"{base}{_EXT}", f"{base} ({author}){_EXT}",
+                      f"{base} ({author}, {t.id}){_EXT}"):
+            if fname.lower() not in used:
+                break
+        used.add(fname.lower())
+        paths[t.id] = Path(fname)
     return paths

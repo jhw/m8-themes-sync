@@ -23,14 +23,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="m8-themes-sync",
         description="Mirror M8 themes (.m8t) from m8them.es into "
-                    "<cache>/<author>/, optionally copying them to an M8 "
+                    "<cache>/, optionally copying them to an M8 "
                     "SD card.")
     p.add_argument("term", nargs="?", default="",
                    help="only themes whose name or author contains this "
                         "(omit for every theme)")
     p.add_argument("--list", action="store_true",
-                   help="print the full catalogue grouped by author and "
-                        "exit; writes nothing")
+                   help="print the full catalogue (grouped by author "
+                        "for reading) and exit; writes nothing")
     p.add_argument("--organise", action="store_true",
                    help="tidy the root of the M8's Themes/ folder and exit: "
                         "stock themes go to defaults/, files that have an "
@@ -47,7 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"M8 mount point (default {DEFAULT_M8_ROOT})")
     p.add_argument("--m8-subdir", default=DEFAULT_SUBDIR,
                    help=f"folder inside {DEFAULT_THEMES_DIR}/ on the M8; "
-                        f"themes go in <subdir>/<author>/ "
+                        f"themes go in <subdir>/ "
                         f"(default '{DEFAULT_SUBDIR}')")
     p.add_argument("--delay", type=float, default=1.0,
                    help="seconds between requests to the site (default 1.0)")
@@ -142,11 +142,14 @@ def main(argv=None) -> int:
         except M8NotFound as e:
             log.error("%s", e)
             return 1
-        log.info("M8 done: %s %d, %d already there%s",
+        log.info("M8 done: %s %d, %d already there%s%s",
                  "would copy" if m.dry_run else "copied", len(m.copied),
                  len(m.unchanged),
                  f", {len(m.not_cached)} not in cache" if m.not_cached
-                 else "")
+                 else "",
+                 f", {len(m.flattened)} old author-folder copies "
+                 f"{'to remove' if m.dry_run else 'removed'}"
+                 if m.flattened else "")
     return status
 
 

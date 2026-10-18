@@ -27,6 +27,7 @@ class M8Report:
     copied: List[str] = field(default_factory=list)
     unchanged: List[str] = field(default_factory=list)
     not_cached: List[str] = field(default_factory=list)
+    flattened: List[str] = field(default_factory=list)
     dry_run: bool = False
 
 
@@ -35,9 +36,9 @@ def copy_to_m8(items: Sequence[Match], cache: Cache, *,
                themes_dir: str = DEFAULT_THEMES_DIR,
                subdir: str = DEFAULT_SUBDIR,
                dry_run: bool = False) -> M8Report:
-    """Copy cached themes to ``<m8_root>/<themes_dir>/<subdir>/<author>/``.
+    """Copy cached themes to ``<m8_root>/<themes_dir>/<subdir>/``.
 
-    By default that is ``/Volumes/M8/Themes/m8themes/<author>/NAME.m8t``.
+    By default that is ``/Volumes/M8/Themes/m8themes/NAME.m8t`` (flat).
     Themes already on the card with identical content are left alone, and
     nothing outside ``<subdir>`` is touched - the stock themes in the root of
     ``Themes/`` and your own custom ones are never modified. ``Themes/`` must
@@ -70,4 +71,41 @@ def copy_to_m8(items: Sequence[Match], cache: Cache, *,
             shutil.copyfile(src, target)
         report.copied.append(shown)
         log.info("M8: %s %s", "would copy" if dry_run else "copied", shown)
+    _flatten_legacy(dest, report, dry_run,
+                    {rel.name: cache.file(rel) for _t, rel in items})
     return report
+
+
+def _flatten_legacy(dest: Path, report: M8Report, dry_run: bool,
+                    cached: dict) -> None:
+    """Remove ``.m8t`` files in sub-folders of ``dest`` (the old
+    ``<author>/NAME.m8t`` layout) whose identical copy now sits directly in
+    ``dest``, then any folders left empty. A file with no identical flat
+    copy is never touched."""
+    if not dest.is_dir():
+        return
+    for old in sorted(dest.rglob("*.m8t")):
+        if old.parent == dest or old.name.startswith("._"):
+            continue
+        flat = dest / old.name
+        if not flat.is_file() and dry_run:
+            flat = cached.get(old.name, flat)    # what the copy would be
+        if flat.is_file() and filecmp.cmp(old, flat, shallow=False):
+            shown = old.relative_to(dest).as_posix()
+            report.flattened.append(shown)
+            log.info("M8: %s %s (now at the top level)",
+                     "would remove" if dry_run else "removed", shown)
+            if not dry_run:
+                old.unlink()
+                junk = old.with_name("._" + old.name)
+                if junk.is_file():
+                    junk.unlink()
+    if dry_run:
+        return
+    for d in sorted((p for p in dest.rglob("*") if p.is_dir()),
+                    key=lambda p: len(p.parts), reverse=True):
+        left = [c for c in d.iterdir() if not c.name.startswith("._")]
+        if not left:
+            for c in d.iterdir():
+                c.unlink()
+            d.rmdir()
